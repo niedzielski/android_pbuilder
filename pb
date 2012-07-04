@@ -5,6 +5,16 @@
 # Copyright 2012 Stephen Niedzielski. Licensed under GPLv3+.
 
 # ------------------------------------------------------------------------------
+#set -e
+#pipefail?
+#...
+
+declare base=lucid_lynx_64
+declare dist=lucid # lsb_release --short --codename
+declare arch=amd64 # dpkg --print-architecture
+declare base_tgz="$base.tgz"
+
+# ------------------------------------------------------------------------------
 pb_create_base()
 {
   # GB
@@ -16,18 +26,14 @@ pb_create_base()
   #  libgl1-mesa-dev g++-multilib tofrodos unzip" # TODO: is python-lxml necessary?
 
   # JB requirements from http://s.android.com/source/initializing.html.
-  declare -r base=lucid-lynx-64 &&
-  declare -r dist=lucid && # lsb_release --short --codename
-  declare -r arch=amd64 && # dpkg --print-architecture
-  declare -r base_tgz="$base.tgz" &&
-
   declare -r extra_packages="
     git-core gnupg flex bison gperf build-essential
     zip curl zlib1g-dev libc6-dev lib32ncurses5-dev
     x11proto-core-dev libx11-dev lib32readline5-dev lib32z-dev
     libgl1-mesa-dev g++-multilib tofrodos
-    libxml2-utils xsltproc unzip
-  " && # HACK: ia32-libs, mingw32, and python-markdown unneeded? Add unzip.
+    libxml2-utils xsltproc unzip file python-lxml
+  " && # HACK: ia32-libs, mingw32, and python-markdown unneeded? Add unzip and
+       # file for build. Add python-lxml for repo.
 
   sudo pbuilder --create \
     --distribution "$dist" \
@@ -47,8 +53,68 @@ pb_create_base()
   echo 'deb http://ppa.launchpad.net/sun-java-community-team/sun-java6/ubuntu lucid main' >> /etc/apt/sources.list &&
   apt-get update &&
   echo "sun-java6-jdk shared/accepted-sun-dlj-v1-1 boolean true" | debconf-set-selections &&
-  apt-get install sun-java6-jdk
+  apt-get install sun-java6-jdk &&
 EOF
-  sudo pbuilder --execute --basetgz "$base_tgz" "$init_script"
+  echo "echo \"pb-$base\" > /etc/debian_chroot" >> "$init_script"
+
+  sudo pbuilder --execute --save-after-exec --basetgz "$base_tgz" "$init_script"
   rm -f "$init_script"
+
+  # git init
+  # aosp_init_pbuilder
+  # sudo chown stephen:stephen "$base.tgz"
+  # git add "$base.tgz"
+  # git commit
 }
+
+pb_login()
+{
+  # HACK: assumed all live under /etc/.
+  local input_files=(
+    /etc/group
+    /etc/hosts
+    /etc/passwd
+    /etc/resolv.conf
+    /etc/shadow
+    /etc/sudoers
+  )
+
+  local bind_mounts=(
+    /home
+  )
+
+  sudo pbuilder --login \
+    $(printf -- "--inputfile %s " "${input_files[@]}") \
+    --bindmounts "${bind_mounts[*]}" \
+    --basetgz "$base.tgz"
+
+  # TODO: we need a login hook to copy /tmp/buildd/* to /etc/, change the
+  # working directory to the Android workspace root, change user to
+  # "$(stat -c %U "$PWD")", source build/envsetup.sh, initialize ccache size,
+  # and perform any other setup needed.
+}
+
+# TODO: time make -j -l"$load_avg"|& tee log/build_$(timestamp).log
+# TODO: pb_exec.
+# TODO: pb_clean.
+# TODO: pb_clobber / pb_superclobber. repo forall -c 'git reset --hard HEAD && git clean -dfqx' && rm -rf "$OUT_DIR_COMMON_BASE"
+# TODO: usage.
+
+# ------------------------------------------------------------------------------
+declare load_avg="$(grep -c ^processor /proc/cpuinfo)"
+declare ccache_size=50G
+
+# ------------------------------------------------------------------------------
+main()
+{
+  # TODO: process options to determine if mode is create base, login, etc.
+  # sudo pbuilder --login --save-after-login --basetgz "$base.tgz"
+  # sudo pbuilder --login --bindmounts /home --basetgz "$base.tgz"
+  :
+}
+
+# ------------------------------------------------------------------------------
+if [[ "$BASH_SOURCE" == "$0" ]]
+then
+  time main "$@"
+fi
