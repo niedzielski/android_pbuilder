@@ -97,7 +97,7 @@ pb_login()
 # TODO: time make -j -l"$load_avg"|& tee log/build_$(timestamp).log
 # TODO: pb_exec.
 # TODO: pb_clean.
-# TODO: pb_clobber / pb_superclobber. repo forall -c 'git reset --hard HEAD && git clean -dfqx' && rm -rf "$OUT_DIR_COMMON_BASE"
+# TODO: pb_clobber / pb_superclobber. repo forall -c 'git reset --hard HEAD && git clean -dfqx' && rm -rf "$OUT_DIR_COMMON_BASE". Also consider simulating a clone or listing all files and deleting the cruft.
 # TODO: usage.
 
 # ------------------------------------------------------------------------------
