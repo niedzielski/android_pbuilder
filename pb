@@ -4,6 +4,8 @@
 # Stephen Niedzielski
 # Copyright 2012 Stephen Niedzielski. Licensed under GPLv3+.
 
+# TODO: use qemubuilder?
+
 # ------------------------------------------------------------------------------
 #set -e
 #pipefail?
